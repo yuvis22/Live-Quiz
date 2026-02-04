@@ -7,31 +7,41 @@ interface LiveChartProps {
   options: { id: string; text: string }[];
 }
 
+const COLORS = ['#ef4444', '#3b82f6', '#fbbf24', '#10b981'];
+
 export default function LiveChart({ stats, options }: LiveChartProps) {
-  const data = options.map(opt => ({
+  const data = options.map((opt, index) => ({
     name: opt.text,
-    votes: stats[opt.id] || 0
+    votes: stats[opt.id] || 0,
+    shortName: ['▲', '◆', '●', '■'][index]
   }));
 
-  const COLORS = ['#818cf8', '#34d399', '#f472b6', '#fbbf24'];
+  const maxVotes = Math.max(...data.map(d => d.votes), 1);
 
   return (
-    <div className="w-full h-64 mt-4">
+    <div className="w-full h-full min-h-[300px]">
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} layout="vertical">
-          <XAxis type="number" hide />
+        <BarChart data={data} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+          <XAxis type="number" hide domain={[0, maxVotes]} />
           <YAxis 
             dataKey="name" 
             type="category" 
             width={100} 
-            tick={{ fill: '#94a3b8', fontSize: 12 }} 
-            interval={0}
+            tick={{ fill: '#9ca3af', fontSize: 13 }}
+            axisLine={false}
+            tickLine={false}
           />
           <Tooltip 
-            cursor={{ fill: 'transparent' }}
-            contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff' }}
+            cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+            contentStyle={{ 
+              backgroundColor: '#18181b', 
+              border: '1px solid rgba(255,255,255,0.1)', 
+              borderRadius: '8px', 
+              color: '#fff',
+              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+            }}
           />
-          <Bar dataKey="votes" radius={[0, 4, 4, 0]}>
+          <Bar dataKey="votes" radius={[0, 4, 4, 0]} barSize={40}>
             {data.map((entry, index) => (
               <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
             ))}
