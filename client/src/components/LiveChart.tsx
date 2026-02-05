@@ -7,13 +7,10 @@ interface LiveChartProps {
   options: { id: string; text: string }[];
 }
 
-const COLORS = ['#ef4444', '#3b82f6', '#fbbf24', '#10b981'];
-
 export default function LiveChart({ stats, options }: LiveChartProps) {
-  const data = options.map((opt, index) => ({
+  const data = options.map((opt) => ({
     name: opt.text,
     votes: stats[opt.id] || 0,
-    shortName: ['▲', '◆', '●', '■'][index]
   }));
 
   const maxVotes = Math.max(...data.map(d => d.votes), 1);
@@ -26,24 +23,25 @@ export default function LiveChart({ stats, options }: LiveChartProps) {
           <YAxis 
             dataKey="name" 
             type="category" 
-            width={100} 
-            tick={{ fill: '#9ca3af', fontSize: 13 }}
+            width={120} 
+            tick={{ fill: '#64748b', fontSize: 13, fontWeight: 500 }}
             axisLine={false}
             tickLine={false}
           />
           <Tooltip 
-            cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+            cursor={{ fill: '#f1f5f9' }}
             contentStyle={{ 
-              backgroundColor: '#18181b', 
-              border: '1px solid rgba(255,255,255,0.1)', 
+              backgroundColor: '#fff', 
+              border: '1px solid #e2e8f0', 
               borderRadius: '8px', 
-              color: '#fff',
-              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+              color: '#0f172a',
+              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+              padding: '8px 12px'
             }}
           />
-          <Bar dataKey="votes" radius={[0, 4, 4, 0]} barSize={40}>
+          <Bar dataKey="votes" radius={[0, 4, 4, 0]} barSize={32}>
             {data.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+              <Cell key={`cell-${index}`} fill="#3b82f6" />
             ))}
           </Bar>
         </BarChart>

@@ -32,9 +32,10 @@ app.get('/', (req, res) => {
 // Seed Route for Demo
 app.post('/api/seed', async (req, res) => {
   try {
+    const { userId } = req.body;
     const demoQuiz = {
       title: "General Knowledge Demo",
-      hostId: new mongoose.Types.ObjectId(), // Fake Host ID
+      hostId: userId || "anonymous", // Use Clerk ID if provided
       questions: [
         {
           id: "q1",
@@ -84,7 +85,39 @@ app.post('/api/seed', async (req, res) => {
   }
 });
 
+// Get Quizzes by Host
+app.get('/api/quizzes/:userId', async (req, res) => {
+  try {
+    const quizzes = await Quiz.find({ hostId: req.params.userId }).sort({ createdAt: -1 });
+    res.json(quizzes);
+  } catch (err) {
+    res.status(500).json({ error: err });
+  }
+});
 
+
+
+// Create New Quiz
+app.post('/api/quizzes', async (req, res) => {
+  try {
+    const { title, userId, questions } = req.body;
+    
+    const newQuiz = new Quiz({
+      title,
+      hostId: userId,
+      questions: questions.map((q: any) => ({
+        ...q,
+        id: new mongoose.Types.ObjectId().toString() // Ensure IDs are generated
+      }))
+    });
+
+    await newQuiz.save();
+    res.json({ success: true, quizId: newQuiz._id });
+  } catch (err) {
+    console.error('Error creating quiz:', err);
+    res.status(500).json({ error: 'Failed to create quiz' });
+  }
+});
 
 // Setup Socket.io logic
 setupSocket(io);

@@ -35,7 +35,7 @@ const questionSchema = new Schema<IQuestion>({
 
 const quizSchema = new Schema<IQuiz>({
   title: { type: String, required: true },
-  hostId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  hostId: { type: String, required: true }, // Clerk User ID
   questions: [questionSchema],
   createdAt: { type: Date, default: Date.now }
 });
