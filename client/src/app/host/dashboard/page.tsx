@@ -16,6 +16,8 @@ export default function HostDashboard() {
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [history, setHistory] = useState<any[]>([]);
+  const [reports, setReports] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState<'quizzes' | 'reports'>('quizzes');
   
   const { roomId, currentQuestion, timeLeft, voteStats, result, players, isHost, setRoomInfo, setQuestion, setTimeLeft, updateVoteStats, setResult, setPlayers } = useQuizStore();
   const [playerCount, setPlayerCount] = useState(0);
@@ -88,6 +90,11 @@ export default function HostDashboard() {
       fetch(`${API_URL}/api/quizzes/${user.id}`)
         .then(res => res.json())
         .then(data => setHistory(data))
+        .catch(err => console.error(err));
+
+      fetch(`${API_URL}/api/results/${user.id}`)
+        .then(res => res.json())
+        .then(data => setReports(data))
         .catch(err => console.error(err));
     }
   }, [user, roomId, isHost]);
@@ -177,7 +184,22 @@ export default function HostDashboard() {
 
             {history.length > 0 && (
               <div className="mt-8 pt-8 border-t border-slate-100 text-left">
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Recent Presentations</p>
+                <div className="flex gap-4 mb-4 border-b border-slate-200">
+                    <button 
+                        onClick={() => setActiveTab('quizzes')}
+                        className={`pb-2 text-sm font-bold tracking-wider uppercase transition-colors ${activeTab === 'quizzes' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
+                    >
+                        My Quizzes
+                    </button>
+                    <button 
+                        onClick={() => setActiveTab('reports')}
+                        className={`pb-2 text-sm font-bold tracking-wider uppercase transition-colors ${activeTab === 'reports' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
+                    >
+                        Past Reports
+                    </button>
+                </div>
+                
+                {activeTab === 'quizzes' ? (
                 <div className="space-y-3">
                   {history.slice(0, 3).map((quiz: any) => (
                     <div 
@@ -193,6 +215,38 @@ export default function HostDashboard() {
                     </div>
                   ))}
                 </div>
+                ) : (
+                <div className="space-y-3">
+                  {reports.map((report: any) => (
+                    <div 
+                      key={report._id} 
+                      className="p-3 bg-slate-50 rounded-lg border border-slate-100 flex justify-between items-center group hover:bg-white hover:border-blue-200 transition-all"
+                    >
+                      <div>
+                         <p className="font-medium text-slate-700">{report.quizId?.title || 'Untitled Session'}</p>
+                         <div className="flex gap-2 text-xs text-slate-400">
+                             <span>{new Date(report.createdAt).toLocaleDateString()}</span>
+                             <span>{new Date(report.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                             <span>•</span>
+                             <span className="font-mono bg-slate-100 px-1 rounded">{report.roomId}</span>
+                             <span>•</span>
+                             <span>{report.players.length} Players</span>
+                         </div>
+                      </div>
+                      <div className="text-right">
+                          {report.players.length > 0 ? (
+                              <div className="text-xs font-semibold text-green-600">
+                                  🏆 {report.players.sort((a:any, b:any) => b.score - a.score)[0]?.username}
+                              </div>
+                          ) : (
+                              <span className="text-xs text-slate-400">No Play</span>
+                          )}
+                      </div>
+                    </div>
+                  ))}
+                  {reports.length === 0 && <p className="text-sm text-slate-400">No past reports found.</p>}
+                </div>
+                )}
               </div>
             )}
           </div>
@@ -269,10 +323,22 @@ export default function HostDashboard() {
                 )}
               </button>
             </div>
-            
-            <div className="mt-auto pt-6 text-center text-xs text-slate-400">
-               Press 'Space' to advance
-            </div>
+                        <div className="mt-auto pt-6 text-center space-y-4">
+               <button
+                 onClick={() => {
+                   if (confirm('Are you sure you want to end this session?')) {
+                     getSocket().emit('TERMINATE_ROOM', { roomId });
+                     toast.success('Session Terminated');
+                     const { reset } = useQuizStore.getState();
+                     reset();
+                   }
+                 }}
+                 className="w-full py-2 bg-red-50 hover:bg-red-100 text-red-600 font-medium rounded-lg text-sm border border-red-200 transition-colors"
+               >
+                 Terminate Session
+               </button>
+               <p className="text-xs text-slate-400">Press 'Space' to advance</p>
+             </div>
           </div>
         </div>
 

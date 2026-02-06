@@ -6,6 +6,12 @@ interface Player {
   socketId: string;
   username: string;
   score: number;
+  answers: {
+    questionId: string;
+    optionId: string;
+    isCorrect: boolean;
+    timeTaken: number;
+  }[];
 }
 
 interface Room {
@@ -63,8 +69,13 @@ export class RoomManager {
     }
 
     if (room.players.has(socket.id)) return; // Already joined
-
-    const player: Player = { socketId: socket.id, username, score: 0 };
+ 
+    const player: Player = { 
+        socketId: socket.id, 
+        username, 
+        score: 0,
+        answers: [] 
+    };
     room.players.set(socket.id, player);
     socket.join(roomId);
 
@@ -152,7 +163,36 @@ export class RoomManager {
     if (room.hostSocketId !== socketId) return; // Only host can start
 
     if (room.currentQuestionIndex + 1 >= room.quiz.questions.length) {
-      this.io.to(roomId).emit('QUIZ_ENDED'); // TODO: Final leaderboard
+      // Logic for quiz end
+      const leaderboard = new Leaderboard({
+          quizId: room.quiz._id,
+          roomId: room.id,
+          isActive: false,
+          players: Array.from(room.players.values()).map(p => ({
+              userId: p.socketId, // For guests, we use socketId. If auth assumed, we need userId
+              username: p.username,
+              score: p.score,
+              answers: p.answers
+          })),
+          currentQuestionIndex: room.currentQuestionIndex,
+          createdAt: new Date()
+      });
+      leaderboard.save().then(() => {
+          console.log(`Leaderboard saved for room ${roomId}`);
+      }).catch(err => console.error('Failed to save leaderboard:', err));
+
+      leaderboard.save().then(() => {
+          console.log(`Leaderboard saved for room ${roomId}`);
+      }).catch(err => console.error('Failed to save leaderboard:', err));
+
+      const allPlayers = Array.from(room.players.values()).sort((a,b) => b.score - a.score);
+      this.io.to(roomId).emit('QUIZ_ENDED', {
+        leaderboard: allPlayers.map(p => ({
+            username: p.username,
+            score: p.score,
+            socketId: p.socketId
+        }))
+      });
       return;
     }
 
@@ -222,10 +262,34 @@ export class RoomManager {
       // Calculate Scores only for MCQ
       room.votes.forEach((vote, socketId) => {
         const player = room.players.get(socketId);
-        if (player && vote === correctOption) {
-            player.score += 10;
+        if (player) {
+            const isCorrect = vote === correctOption;
+            if (isCorrect) player.score += 10;
+            
+            player.answers.push({
+                questionId: currentQ.id,
+                optionId: vote,
+                isCorrect,
+                timeTaken: 0 // TODO: Implement exact timing if needed later
+            });
         }
       });
+      
+      // Also record incorrect/missed answers for players who didn't vote or voted wrong (if logic assumes missing = wrong)
+      // For now, we only push "votes". If they didn't vote, no answer recorded.
+    } else if (isPoll) {
+        // Record poll votes too
+        room.votes.forEach((vote, socketId) => {
+            const player = room.players.get(socketId);
+            if (player) {
+                player.answers.push({
+                    questionId: currentQ.id,
+                    optionId: vote,
+                    isCorrect: true, // Poll answers are always "valid"
+                    timeTaken: 0
+                });
+            }
+        });
     }
 
     // Calculate final stats for the chart
@@ -244,5 +308,31 @@ export class RoomManager {
       isPoll,
       stats: voteCounts // Send final stats
     });
+  }
+
+  terminateRoom(socketId: string, roomId: string) {
+    const room = this.rooms.get(roomId);
+    if (!room) return;
+    if (room.hostSocketId !== socketId) return; // Only host can terminate
+
+    console.log(`Room ${roomId} terminated by host`);
+    // Notify all clients with their final stats
+    const allPlayers = Array.from(room.players.values()).sort((a,b) => b.score - a.score);
+    
+    // We need to send personalized info to each socket, OR broadcast the full leaderboard and let client find themselves.
+    // Broadcasting full leaderboard is easier and supports "See who won".
+    
+    this.io.to(roomId).emit('QUIZ_ENDED', {
+        leaderboard: allPlayers.map(p => ({
+            username: p.username,
+            score: p.score,
+            socketId: p.socketId
+        }))
+    }); 
+    this.io.to(roomId).emit('ROOM_TERMINATED');
+
+    // Cleanup
+    if (room.timer) clearInterval(room.timer);
+    this.rooms.delete(roomId);
   }
 }

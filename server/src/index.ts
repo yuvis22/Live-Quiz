@@ -95,6 +95,28 @@ app.get('/api/quizzes/:userId', async (req, res) => {
   }
 });
 
+import { Leaderboard } from './models/Leaderboard';
+
+// Get Past Results
+app.get('/api/results/:userId', async (req, res) => {
+  try {
+     // 1. Find all quizzes by this host
+     const userQuizzes = await Quiz.find({ hostId: req.params.userId }).select('_id title');
+     const quizIds = userQuizzes.map(q => q._id);
+
+     // 2. Find leaderboards/results for these quizzes
+     const results = await Leaderboard.find({ quizId: { $in: quizIds }, isActive: false })
+       .sort({ createdAt: -1 })
+       .populate('quizId', 'title') // Populate quiz title
+       .limit(20);
+
+     res.json(results);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch results' });
+  }
+});
+
 
 
 // Create New Quiz

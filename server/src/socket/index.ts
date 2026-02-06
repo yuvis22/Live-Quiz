@@ -37,6 +37,10 @@ export const setupSocket = (io: Server) => {
     socket.on('SUBMIT_VOTE', ({ roomId, optionId }: { roomId: string; optionId: string }) => {
         roomManager.submitVote(socket, roomId, optionId);
     });
+
+    socket.on('TERMINATE_ROOM', ({ roomId }: { roomId: string }) => {
+        roomManager.terminateRoom(socket.id, roomId);
+    });
   });
 };
 

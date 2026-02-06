@@ -16,7 +16,13 @@ export default function QuizRoom() {
   const [hasVoted, setHasVoted] = useState(false);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [waitingMessage, setWaitingMessage] = useState('Waiting for presenter...');
-  const [result, setResult] = useState<{ correctOption: string; leaderboard: any[] } | null>(null);
+  const [result, setResult] = useState<{ 
+      correctOption: string; 
+      leaderboard: any[];
+      final?: boolean;
+      myRank?: number;
+      myScore?: number;
+  } | null>(null);
 
   useEffect(() => {
     if (!username) {
@@ -44,9 +50,21 @@ export default function QuizRoom() {
       setResult(data);
       setWaitingMessage('Round complete. Waiting for next slide...');
     });
-    socket.on('QUIZ_ENDED', () => {
+    socket.on('QUIZ_ENDED', (data) => {
       setWaitingMessage('Presentation ended. Thank you for participating!');
-      // Keep the result visible if it exists, or show a specific end screen
+      if (data && data.leaderboard) {
+          // Find my stats
+          const myStatsIndex = data.leaderboard.findIndex((p: any) => p.username === username);
+          if (myStatsIndex !== -1) {
+              setResult({
+                  correctOption: '', // Flag for final screen
+                  leaderboard: [],
+                  final: true,
+                  myRank: myStatsIndex + 1,
+                  myScore: data.leaderboard[myStatsIndex].score
+              } as any);
+          }
+      }
     });
 
     return () => {
@@ -211,6 +229,44 @@ export default function QuizRoom() {
                 </div>
             </div>
           </div>
+        ) : result && result.final ? (
+           <div className="max-w-md mx-auto bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden animate-fade-in-up">
+             <div className="bg-slate-900 p-8 text-center text-white relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-full bg-blue-600/10" />
+                <Trophy className="w-16 h-16 mx-auto mb-4 text-yellow-400 relative z-10 animate-bounce" />
+                <h2 className="text-3xl font-bold mb-2 relative z-10">Presentation Over</h2>
+                <p className="opacity-70 text-sm relative z-10">Here is how you did!</p>
+             </div>
+             
+             <div className="p-8 space-y-8">
+                 <div className="flex justify-center gap-8 text-center">
+                    <div>
+                        <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Rank</p>
+                        <p className="text-4xl font-bold text-slate-900">#{result.myRank}</p>
+                    </div>
+                    <div className="w-px bg-slate-100" />
+                    <div>
+                        <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Score</p>
+                        <p className="text-4xl font-bold text-blue-600">{result.myScore}</p>
+                    </div>
+                 </div>
+
+                 <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 text-center">
+                    <p className="text-slate-600 font-medium">
+                        {result.myRank === 1 ? '🥇 Champion! Amazing work!' : 
+                         result.myRank <= 3 ? '🥈 Podium Finish! Great job!' : 
+                         'Thanks for participating!'}
+                    </p>
+                 </div>
+                 
+                 <button 
+                    onClick={() => router.push('/')}
+                    className="w-full py-3 bg-slate-900 text-white font-semibold rounded-xl hover:bg-slate-800 transition-colors"
+                 >
+                    Back to Home
+                 </button>
+             </div>
+           </div>
         ) : (
           <div className="flex flex-col items-center justify-center min-h-[50vh] text-center space-y-8 animate-fade-in-up">
              <div className="relative">
