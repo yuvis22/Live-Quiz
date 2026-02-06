@@ -65,7 +65,11 @@ export default function HostDashboard() {
     });
     socket.on('QUIZ_ENDED', () => {
          toast.success('Presentation Completed! 🎉');
-         // Don't clear state so the final result/leaderboard stays visible
+         // Redirect back to dashboard after a delay
+         setTimeout(() => {
+            const { reset } = useQuizStore.getState();
+            reset();
+         }, 3000);
     });
   }, []);
 
