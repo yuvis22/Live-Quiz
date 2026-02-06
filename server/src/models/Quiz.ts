@@ -7,9 +7,10 @@ export interface IOption {
 
 export interface IQuestion {
   id: string;
+  type: 'MCQ' | 'POLL';
   text: string;
   options: IOption[];
-  correctOptionId: string;
+  correctOptionId?: string;
   timeLimit?: number; // defaults to 15s if not set
 }
 
@@ -27,9 +28,15 @@ const optionSchema = new Schema<IOption>({
 
 const questionSchema = new Schema<IQuestion>({
   id: { type: String, required: true },
+  type: { type: String, enum: ['MCQ', 'POLL'], default: 'MCQ' },
   text: { type: String, required: true },
   options: [optionSchema],
-  correctOptionId: { type: String, required: true },
+  correctOptionId: { 
+    type: String, 
+    required: function(this: any) {
+      return this.type === 'MCQ';
+    }
+  },
   timeLimit: { type: Number, default: 15 }
 });
 

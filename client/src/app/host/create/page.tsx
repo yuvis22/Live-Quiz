@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser, UserButton } from '@clerk/nextjs';
-import { Plus, Trash2, Save, ArrowLeft, Check, Clock, GripVertical } from 'lucide-react';
+import { Plus, Trash2, Save, ArrowLeft, Check, Clock, GripVertical, BarChart3, HelpCircle } from 'lucide-react';
 
 interface Option {
   id: string;
@@ -12,9 +12,10 @@ interface Option {
 
 interface Question {
   id: string; // temp id for UI
+  type: 'MCQ' | 'POLL';
   text: string;
   options: Option[];
-  correctOptionId: string;
+  correctOptionId?: string;
   timeLimit: number;
 }
 
@@ -26,6 +27,7 @@ export default function CreateQuiz() {
   const [questions, setQuestions] = useState<Question[]>([
     {
       id: '1',
+      type: 'MCQ',
       text: '',
       options: [
         { id: 'A', text: '' },
@@ -43,6 +45,7 @@ export default function CreateQuiz() {
       ...questions,
       {
         id: Date.now().toString(),
+        type: 'MCQ',
         text: '',
         options: [
           { id: 'A', text: '' },
@@ -75,6 +78,40 @@ export default function CreateQuiz() {
     setQuestions(newQ);
   };
 
+  const addOption = (qIndex: number) => {
+    const newQ = [...questions];
+    const currentOptions = newQ[qIndex].options;
+    if (currentOptions.length >= 6) return; // Max 6 options
+
+    const nextId = String.fromCharCode(65 + currentOptions.length); // A, B, C...
+    currentOptions.push({ id: nextId, text: '' });
+    setQuestions(newQ);
+  };
+
+  const removeOption = (qIndex: number, oIndex: number) => {
+    const newQ = [...questions];
+    const currentOptions = newQ[qIndex].options;
+    if (currentOptions.length <= 2) return; // Min 2 options
+
+    currentOptions.splice(oIndex, 1);
+    
+    // Re-assign IDs to keep them sequential
+    newQ[qIndex].options = currentOptions.map((opt, i) => ({
+      ...opt,
+      id: String.fromCharCode(65 + i)
+    }));
+    
+    // If the correct option was removed or ID changed, reset to A or adjust?
+    // Safer to just ensure correctOptionId is still valid. 
+    // If deleted option was correct, default to A.
+    const newIds = newQ[qIndex].options.map(o => o.id);
+    if (!newIds.includes(newQ[qIndex].correctOptionId || '')) {
+       newQ[qIndex].correctOptionId = 'A';
+    }
+
+    setQuestions(newQ);
+  };
+
   const handleSave = async () => {
     if (!title || questions.some(q => !q.text || q.options.some(o => !o.text))) {
       alert('Please fill in all fields');
@@ -90,9 +127,10 @@ export default function CreateQuiz() {
           title,
           userId: user?.id,
           questions: questions.map(q => ({
+            type: q.type,
             text: q.text,
             options: q.options,
-            correctOptionId: q.correctOptionId,
+            correctOptionId: q.type === 'MCQ' ? q.correctOptionId : undefined,
             timeLimit: q.timeLimit
           }))
         })
@@ -158,6 +196,24 @@ export default function CreateQuiz() {
                   </span>
                   <span className="text-sm font-semibold text-slate-500">Question Slide</span>
                 </div>
+                
+                <div className="flex bg-slate-200 rounded-lg p-1 ml-4 gap-1">
+                   <button 
+                     onClick={() => updateQuestion(qIndex, 'type', 'MCQ')}
+                     className={`px-3 py-1 text-xs font-bold rounded-md flex items-center gap-1 transition-all ${q.type === 'MCQ' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                   >
+                     <HelpCircle className="w-3 h-3" /> Quiz
+                   </button>
+                   <button 
+                     onClick={() => updateQuestion(qIndex, 'type', 'POLL')}
+                     className={`px-3 py-1 text-xs font-bold rounded-md flex items-center gap-1 transition-all ${q.type === 'POLL' ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                   >
+                     <BarChart3 className="w-3 h-3" /> Poll
+                   </button>
+                </div>
+
+                <div className="flex-1" />
+
                 <button 
                   onClick={() => removeQuestion(qIndex)}
                   className="text-slate-400 hover:text-red-500 transition-colors"
@@ -177,7 +233,7 @@ export default function CreateQuiz() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {q.options.map((opt, oIndex) => (
-                    <div key={opt.id} className="relative">
+                    <div key={opt.id} className="relative group/option">
                       <div className={`absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded flex items-center justify-center text-xs font-bold border ${q.correctOptionId === opt.id ? 'bg-green-500 border-green-500 text-white' : 'bg-slate-100 border-slate-200 text-slate-500'}`}>
                         {opt.id}
                       </div>
@@ -186,16 +242,43 @@ export default function CreateQuiz() {
                         value={opt.text}
                         onChange={(e) => updateOption(qIndex, oIndex, e.target.value)}
                         placeholder={`Option ${opt.id}`}
-                        className={`w-full pl-12 pr-10 py-3 bg-slate-50 border rounded-lg outline-none transition-all ${q.correctOptionId === opt.id ? 'border-green-500 ring-1 ring-green-500/20 bg-green-50/10' : 'border-slate-200 focus:border-blue-400'}`}
+                        className={`w-full pl-12 pr-16 py-3 bg-slate-50 border rounded-lg outline-none transition-all ${q.correctOptionId === opt.id ? 'border-green-500 ring-1 ring-green-500/20 bg-green-50/10' : 'border-slate-200 focus:border-blue-400'}`}
                       />
-                      <button
-                        onClick={() => updateQuestion(qIndex, 'correctOptionId', opt.id)}
-                        className={`absolute right-3 top-1/2 -translate-y-1/2 transition-colors ${q.correctOptionId === opt.id ? 'text-green-500' : 'text-slate-300 hover:text-slate-400'}`}
-                      >
-                        <Check className="w-5 h-5" />
-                      </button>
+                      
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                        {/* Remove Option Button */}
+                        {q.options.length > 2 && (
+                          <button
+                            onClick={() => removeOption(qIndex, oIndex)}
+                            className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors opacity-0 group-hover/option:opacity-100"
+                            title="Remove Option"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                        
+                        {/* Correct Answer Checkmark */}
+                        {q.type === 'MCQ' && (
+                          <button
+                            onClick={() => updateQuestion(qIndex, 'correctOptionId', opt.id)}
+                            className={`p-1.5 transition-colors rounded-md ${q.correctOptionId === opt.id ? 'text-green-500 bg-green-50' : 'text-slate-300 hover:text-green-500 hover:bg-green-50'}`}
+                            title="Mark as Correct"
+                          >
+                            <Check className="w-5 h-5" />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))}
+                  
+                  {q.options.length < 6 && (
+                    <button
+                      onClick={() => addOption(qIndex)}
+                      className="h-full min-h-[50px] border-2 border-dashed border-slate-200 rounded-lg flex items-center justify-center gap-2 text-slate-400 hover:border-blue-300 hover:text-blue-500 hover:bg-blue-50/50 transition-all font-medium text-sm"
+                    >
+                      <Plus className="w-4 h-4" /> Add Option
+                    </button>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-4 pt-4 border-t border-slate-50">

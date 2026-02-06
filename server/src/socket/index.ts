@@ -15,6 +15,7 @@ export const setupSocket = (io: Server) => {
     socket.on('CREATE_ROOM', async ({ quizId }: { quizId: string }, callback: (res: any) => void) => {
       try {
         const roomId = await roomManager.createRoom(socket.id, quizId);
+        socket.join(roomId); // CRITICAL: Host must join the room to receive events
         callback({ success: true, roomId });
       } catch (err: any) {
         callback({ success: false, error: err.message });

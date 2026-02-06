@@ -6,7 +6,7 @@ import { useQuizStore } from '@/store/useQuizStore';
 import LiveChart from '@/components/LiveChart';
 import { useUser, UserButton } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
-import { Copy, Plus, Play, SkipForward, Users, Clock, Check, BarChart3, Settings } from 'lucide-react';
+import { Copy, Plus, Play, SkipForward, Users, Clock, Check, BarChart3, Trophy, Loader2 } from 'lucide-react';
 
 export default function HostDashboard() {
   const { user, isLoaded } = useUser();
@@ -15,7 +15,7 @@ export default function HostDashboard() {
   const [copied, setCopied] = useState(false);
   const [history, setHistory] = useState<any[]>([]);
   
-  const { roomId, currentQuestion, timeLeft, voteStats, setRoomInfo, setQuestion, setTimeLeft, updateVoteStats } = useQuizStore();
+  const { roomId, currentQuestion, timeLeft, voteStats, result, setRoomInfo, setQuestion, setTimeLeft, updateVoteStats, setResult } = useQuizStore();
   const [playerCount, setPlayerCount] = useState(0);
 
   useEffect(() => {
@@ -32,7 +32,22 @@ export default function HostDashboard() {
       socket.off('NEW_QUESTION');
       socket.off('TICK');
       socket.off('LIVE_STATS');
+      socket.off('MAX_VOTES_REACHED'); // If you add this later
+      socket.off('QUESTION_ENDED');
+      socket.off('QUIZ_ENDED');
     };
+  }, []);
+
+  useEffect(() => {
+    const socket = getSocket();
+    socket.on('QUESTION_ENDED', (data) => {
+        setResult(data);
+    });
+    socket.on('QUIZ_ENDED', () => {
+         // Handle end of presentation if specific UI needed
+         setQuestion(null as any);
+         setResult(null); // Or keep result to show final leaderboard
+    });
   }, []);
 
   useEffect(() => {
@@ -217,7 +232,75 @@ export default function HostDashboard() {
         {/* Right Column: Main View */}
         <div className="lg:col-span-3 h-full pb-6">
           <div className="bg-white border border-slate-200 rounded-xl shadow-sm h-full flex flex-col relative overflow-hidden">
-             {currentQuestion ? (
+             {result ? (
+               result.isPoll ? (
+                 <div className="flex-1 flex flex-col p-8 md:p-12 animate-fade-in-up">
+                   <div className="flex justify-between items-center mb-8">
+                     <div>
+                       <h2 className="text-3xl font-bold text-slate-900 leading-tight flex items-center gap-3">
+                         <BarChart3 className="w-8 h-8 text-blue-600" /> 
+                         Poll Results
+                       </h2>
+                       <p className="text-slate-500 mt-1">Final tally for this slide</p>
+                     </div>
+                   </div>
+
+                   <div className="flex-1 min-h-[400px]">
+                      {voteStats ? (
+                        <div className="h-full w-full">
+                           <LiveChart stats={voteStats} options={currentQuestion?.options || []} />
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-center h-full text-slate-300">
+                           <p>No votes recorded.</p>
+                        </div>
+                      )}
+                   </div>
+                 </div>
+               ) : (
+                <div className="flex-1 flex flex-col p-8 md:p-12 animate-fade-in-up">
+                   <div className="flex justify-between items-center mb-8">
+                     <div>
+                       <h2 className="text-3xl font-bold text-slate-900 leading-tight flex items-center gap-3">
+                         <Trophy className="w-8 h-8 text-yellow-500" /> 
+                         Leaderboard
+                       </h2>
+                       <p className="text-slate-500 mt-1">Results for this round</p>
+                     </div>
+                     <div className="p-4 bg-green-50 rounded-xl border border-green-100 text-green-800 font-medium flex items-center gap-2">
+                        <Check className="w-5 h-5" />
+                        Answer: <span className="font-bold">{currentQuestion?.options.find((o: any) => o.id === result.correctOption)?.text}</span>
+                     </div>
+                   </div>
+
+                   <div className="flex-1 bg-slate-50 rounded-2xl border border-slate-100 p-6 overflow-y-auto">
+                      <div className="space-y-3">
+                       {result.leaderboard.map((p: any, i: number) => (
+                         <div key={i} className={`flex justify-between items-center p-4 rounded-xl border ${i < 3 ? 'bg-white border-blue-100 shadow-sm' : 'bg-slate-100/50 border-transparent'}`}>
+                           <div className="flex items-center gap-4">
+                             <div className={`
+                                w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm
+                                ${i === 0 ? 'bg-yellow-100 text-yellow-700' : 
+                                  i === 1 ? 'bg-slate-200 text-slate-600' :
+                                  i === 2 ? 'bg-orange-100 text-orange-700' : 'bg-white border border-slate-200 text-slate-400'}
+                             `}>
+                               {i + 1}
+                             </div>
+                             <span className={`font-semibold ${i < 3 ? 'text-slate-900 text-lg' : 'text-slate-600'}`}>{p.username}</span>
+                           </div>
+                           <span className="font-mono font-bold text-slate-900 text-lg">{p.score}</span>
+                         </div>
+                       ))}
+                       {result.leaderboard.length === 0 && (
+                          <div className="text-center text-slate-400 py-12">
+                              No active participants yet.
+                          </div>
+                       )}
+                      </div>
+                   </div>
+                </div>
+               )
+             ) : currentQuestion ? (
               <div className="flex-1 flex flex-col p-8 md:p-12">
                 <div className="flex justify-between items-start mb-8">
                   <h2 className="text-3xl md:text-4xl font-bold text-slate-900 leading-tight pr-12">{currentQuestion.text}</h2>

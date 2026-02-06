@@ -87,6 +87,7 @@ export class RoomManager {
     // Broadcast question (HIDE CORRECT ANSWER)
     this.io.to(roomId).emit('NEW_QUESTION', {
       id: question.id,
+      type: question.type || 'MCQ',
       text: question.text,
       options: question.options,
       timeLimit: 15
@@ -135,22 +136,23 @@ export class RoomManager {
 
     const currentQ = room.quiz.questions[room.currentQuestionIndex];
     const correctOption = currentQ.correctOptionId;
+    const isPoll = currentQ.type === 'POLL';
 
-    // Calculate Scores (Simple: +10 for correct)
-    // Specs: "Automatic scoring based on correctness and speed"
-    // For now, let's just do correctness. Speed can be added later.
-    
-    room.votes.forEach((vote, socketId) => {
-      const player = room.players.get(socketId);
-      if (player && vote === correctOption) {
-          player.score += 10;
-      }
-    });
+    if (!isPoll && correctOption) {
+      // Calculate Scores only for MCQ
+      room.votes.forEach((vote, socketId) => {
+        const player = room.players.get(socketId);
+        if (player && vote === correctOption) {
+            player.score += 10;
+        }
+      });
+    }
 
     // Send results
     this.io.to(roomId).emit('QUESTION_ENDED', {
-      correctOption,
-      leaderboard: Array.from(room.players.values()).sort((a,b) => b.score - a.score)
+      correctOption: isPoll ? null : correctOption,
+      leaderboard: Array.from(room.players.values()).sort((a,b) => b.score - a.score),
+      isPoll
     });
   }
 }
