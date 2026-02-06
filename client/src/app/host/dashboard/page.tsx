@@ -243,10 +243,23 @@ export default function HostDashboard() {
                
                <button
                 onClick={startNextQuestion}
-                className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl flex items-center justify-center gap-2 transition-all shadow-md shadow-blue-500/20"
+                className={`w-full py-4 text-white font-semibold rounded-xl flex items-center justify-center gap-2 transition-all shadow-md ${
+                  currentQuestion && currentQuestion.currentQuestionIndex === currentQuestion.totalQuestions
+                    ? 'bg-slate-800 hover:bg-slate-900 shadow-slate-500/20'
+                    : 'bg-blue-600 hover:bg-blue-700 shadow-blue-500/20'
+                }`}
               >
-                {currentQuestion ? <SkipForward className="w-5 h-5" /> : <Play className="w-5 h-5" />}
-                <span>{currentQuestion ? 'Next Slide' : 'Start Presentation'}</span>
+                {currentQuestion && currentQuestion.currentQuestionIndex === currentQuestion.totalQuestions ? (
+                   <div className="flex items-center gap-2">
+                     <Check className="w-5 h-5" />
+                     <span>Finish Presentation</span>
+                   </div>
+                ) : (
+                   <>
+                    {currentQuestion ? <SkipForward className="w-5 h-5" /> : <Play className="w-5 h-5" />}
+                    <span>{currentQuestion ? 'Next Slide' : 'Start Presentation'}</span>
+                   </>
+                )}
               </button>
             </div>
             

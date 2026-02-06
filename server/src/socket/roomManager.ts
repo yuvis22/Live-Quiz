@@ -110,7 +110,9 @@ export class RoomManager {
             type: question.type || 'MCQ',
             text: question.text,
             options: question.options,
-            timeLimit: 15
+            timeLimit: 15,
+            currentQuestionIndex: room.currentQuestionIndex + 1,
+            totalQuestions: room.quiz.questions.length
         });
         if (room.isLive) {
             socket.emit('TICK', room.timeLeft);
@@ -166,7 +168,9 @@ export class RoomManager {
       type: question.type || 'MCQ',
       text: question.text,
       options: question.options,
-      timeLimit: 15
+      timeLimit: 15,
+      currentQuestionIndex: room.currentQuestionIndex + 1, // 1-based for UI
+      totalQuestions: room.quiz.questions.length
     });
 
     // Start Timer

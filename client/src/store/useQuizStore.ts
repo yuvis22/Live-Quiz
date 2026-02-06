@@ -7,6 +7,8 @@ interface Question {
   text: string;
   options: { id: string; text: string }[];
   timeLimit: number;
+  currentQuestionIndex?: number;
+  totalQuestions?: number;
 }
 
 interface QuizState {
