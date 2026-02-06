@@ -62,6 +62,9 @@ export default function HostDashboard() {
     const socket = getSocket();
     socket.on('QUESTION_ENDED', (data) => {
         setResult(data);
+        if (data.stats) {
+           updateVoteStats(data.stats);
+        }
     });
     socket.on('QUIZ_ENDED', () => {
          toast.success('Presentation Completed! 🎉');

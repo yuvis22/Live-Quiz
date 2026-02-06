@@ -228,11 +228,21 @@ export class RoomManager {
       });
     }
 
+    // Calculate final stats for the chart
+    const voteCounts: Record<string, number> = {};
+    if (currentQ.options) {
+        currentQ.options.forEach(opt => voteCounts[opt.id] = 0);
+        room.votes.forEach((vote) => {
+           if (voteCounts[vote] !== undefined) voteCounts[vote]++;
+        });
+    }
+
     // Send results
     this.io.to(roomId).emit('QUESTION_ENDED', {
       correctOption: isPoll ? null : correctOption,
       leaderboard: Array.from(room.players.values()).sort((a,b) => b.score - a.score),
-      isPoll
+      isPoll,
+      stats: voteCounts // Send final stats
     });
   }
 }
