@@ -15,9 +15,7 @@ export default function Home() {
 
   const handleJoin = () => {
     if (!code || !name) return;
-    const socket = getSocket();
-    socket.connect();
-    socket.emit('JOIN_ROOM', { roomId: code, username: name });
+    // Just set state and redirect. The Room page will handle the socket connection.
     setRoomInfo(code, name, false);
     router.push(`/quiz/${code}`);
   };

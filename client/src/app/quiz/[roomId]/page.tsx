@@ -27,6 +27,9 @@ export default function QuizRoom() {
     const socket = getSocket();
     if (!socket.connected) socket.connect();
 
+    // Ensure we join the room (idempotent on server)
+    socket.emit('JOIN_ROOM', { roomId, username });
+
     socket.on('NEW_QUESTION', (data) => {
       setQuestion(data);
       setHasVoted(false);
@@ -42,9 +45,8 @@ export default function QuizRoom() {
       setWaitingMessage('Round complete. Waiting for next slide...');
     });
     socket.on('QUIZ_ENDED', () => {
-      setWaitingMessage('Presentation ended. Thank you for participating.');
-      setResult(null);
-      setQuestion(null as any);
+      setWaitingMessage('Presentation ended. Thank you for participating!');
+      // Keep the result visible if it exists, or show a specific end screen
     });
 
     return () => {
@@ -54,7 +56,7 @@ export default function QuizRoom() {
       socket.off('QUESTION_ENDED');
       socket.off('QUIZ_ENDED');
     };
-  }, [roomId, username, router]);
+  }, [roomId, username, router, setQuestion, setTimeLeft, updateVoteStats]);
 
   const handleVote = (optionId: string) => {
     if (hasVoted || timeLeft <= 0) return;

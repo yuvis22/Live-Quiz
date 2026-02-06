@@ -17,14 +17,17 @@ export default function HostDashboard() {
   const [copied, setCopied] = useState(false);
   const [history, setHistory] = useState<any[]>([]);
   
-  const { roomId, currentQuestion, timeLeft, voteStats, result, setRoomInfo, setQuestion, setTimeLeft, updateVoteStats, setResult } = useQuizStore();
+  const { roomId, currentQuestion, timeLeft, voteStats, result, players, setRoomInfo, setQuestion, setTimeLeft, updateVoteStats, setResult, setPlayers } = useQuizStore();
   const [playerCount, setPlayerCount] = useState(0);
 
   useEffect(() => {
     const socket = getSocket();
     if (!socket.connected) socket.connect();
 
-    socket.on('PLAYER_JOINED', (data) => setPlayerCount(data.playerCount));
+    socket.on('PLAYER_JOINED', (data) => {
+      setPlayerCount(data.playerCount);
+      setPlayers(data.players);
+    });
     socket.on('NEW_QUESTION', (data) => setQuestion(data));
     socket.on('TICK', (time) => setTimeLeft(time));
     socket.on('LIVE_STATS', (stats) => updateVoteStats(stats));
@@ -46,9 +49,8 @@ export default function HostDashboard() {
         setResult(data);
     });
     socket.on('QUIZ_ENDED', () => {
-         // Handle end of presentation if specific UI needed
-         setQuestion(null as any);
-         setResult(null); // Or keep result to show final leaderboard
+         toast.success('Presentation Completed! 🎉');
+         // Don't clear state so the final result/leaderboard stays visible
     });
   }, []);
 
@@ -334,25 +336,27 @@ export default function HostDashboard() {
                  <p className="text-slate-500 text-lg max-w-md">
                    Audience can join at <span className="font-bold text-blue-600">livepoll.app</span> using code <span className="font-mono font-bold bg-white px-2 py-0.5 rounded border border-slate-200">{roomId}</span>
                  </p>
-                 
-                 <div className="mt-12 bg-white p-6 rounded-xl border border-slate-200 shadow-sm max-w-sm w-full">
-                    <div className="flex justify-between items-center border-b border-slate-100 pb-4 mb-4">
-                      <span className="text-sm font-medium text-slate-500">Joined Participants</span>
-                      <span className="text-2xl font-bold text-slate-900">{playerCount}</span>
-                    </div>
-                    <div className="flex -space-x-2 justify-center">
-                       {[...Array(Math.min(playerCount, 5))].map((_, i) => (
-                          <div key={i} className="w-8 h-8 rounded-full bg-slate-200 border-2 border-white ring-1 ring-slate-100 flex items-center justify-center text-xs font-bold text-slate-500">
-                            {['A','B','C'][i%3]}
+                                  <div className="mt-12 bg-white p-6 rounded-xl border border-slate-200 shadow-sm max-w-sm w-full">
+                     <div className="flex justify-between items-center border-b border-slate-100 pb-4 mb-4">
+                       <span className="text-sm font-medium text-slate-500">Joined Participants</span>
+                       <span className="text-2xl font-bold text-slate-900">{playerCount}</span>
+                     </div>
+                     <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto">
+                        {players.map((p, i) => (
+                           <div key={i} className="flex items-center gap-2 p-2 rounded-lg bg-slate-50 border border-slate-100">
+                             <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-[10px] font-bold text-blue-600">
+                               {p.username.charAt(0).toUpperCase()}
+                             </div>
+                             <span className="text-sm font-medium text-slate-700 truncate">{p.username}</span>
+                           </div>
+                        ))}
+                        {players.length === 0 && (
+                          <div className="col-span-2 text-center text-xs text-slate-400 py-4">
+                            Waiting for players to join...
                           </div>
-                       ))}
-                       {playerCount > 5 && (
-                         <div className="w-8 h-8 rounded-full bg-slate-100 border-2 border-white ring-1 ring-slate-100 flex items-center justify-center text-xs font-bold text-slate-500">
-                           +{playerCount - 5}
-                         </div>
-                       )}
-                    </div>
-                 </div>
+                        )}
+                     </div>
+                  </div>
                </div>
              )}
           </div>

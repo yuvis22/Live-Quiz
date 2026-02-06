@@ -32,7 +32,10 @@ export class RoomManager {
     const quiz = await Quiz.findById(quizId);
     if (!quiz) throw new Error('Quiz not found');
 
-    const roomId = Math.random().toString(36).substring(2, 8).toUpperCase();
+    let roomId = '';
+    do {
+       roomId = Math.random().toString(36).substring(2, 8).toUpperCase();
+    } while (this.rooms.has(roomId));
     
     this.rooms.set(roomId, {
       id: roomId,
@@ -64,7 +67,16 @@ export class RoomManager {
     socket.join(roomId);
 
     // Notify everyone (especially host)
-    this.io.to(roomId).emit('PLAYER_JOINED', { username, playerCount: room.players.size });
+    const playerList = Array.from(room.players.values()).map(p => ({
+        socketId: p.socketId,
+        username: p.username,
+        score: p.score
+    }));
+    this.io.to(roomId).emit('PLAYER_JOINED', { 
+        username, 
+        playerCount: room.players.size,
+        players: playerList 
+    });
     console.log(`${username} joined room ${roomId}`);
   }
 
