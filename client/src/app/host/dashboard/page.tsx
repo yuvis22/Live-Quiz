@@ -25,21 +25,30 @@ export default function HostDashboard() {
     if (!socket.connected) socket.connect();
 
     socket.on('PLAYER_JOINED', (data) => {
+      console.log('[DEBUG] Host received PLAYER_JOINED:', data);
       setPlayerCount(data.playerCount);
-      setPlayers(data.players);
+      if (data.players) setPlayers(data.players);
     });
     socket.on('NEW_QUESTION', (data) => setQuestion(data));
     socket.on('TICK', (time) => setTimeLeft(time));
     socket.on('LIVE_STATS', (stats) => updateVoteStats(stats));
+    socket.on('ERROR', (data) => {
+      console.error('Socket Error:', data);
+      toast.error(data.message || 'Connection error');
+      if (data.message === 'Room not found') {
+         // Maybe reset state or redirect?
+      }
+    });
 
     return () => {
       socket.off('PLAYER_JOINED');
       socket.off('NEW_QUESTION');
       socket.off('TICK');
       socket.off('LIVE_STATS');
-      socket.off('MAX_VOTES_REACHED'); // If you add this later
+      socket.off('MAX_VOTES_REACHED');
       socket.off('QUESTION_ENDED');
       socket.off('QUIZ_ENDED');
+      socket.off('ERROR');
     };
   }, []);
 

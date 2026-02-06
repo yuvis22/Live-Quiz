@@ -136,6 +136,7 @@ export class RoomManager {
         username: p.username,
         score: p.score
     }));
+    console.log(`[DEBUG] Broadcasting PLAYER_JOINED to room ${roomId}. Players:`, playerList.length);
     this.io.to(roomId).emit('PLAYER_JOINED', { 
         username: '', // Not needed for update
         playerCount: room.players.size,

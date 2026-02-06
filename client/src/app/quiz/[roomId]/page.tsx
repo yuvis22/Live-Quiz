@@ -9,7 +9,7 @@ import { Check, Trophy, Clock, Loader2, BarChart3 } from 'lucide-react';
 
 export default function QuizRoom() {
   const params = useParams();
-  const roomId = params.roomId as string;
+  const roomId = (params.roomId as string).toUpperCase();
   const router = useRouter();
   
   const { username, currentQuestion, timeLeft, voteStats, setQuestion, setTimeLeft, updateVoteStats } = useQuizStore();
