@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useUser, UserButton } from '@clerk/nextjs';
 import { Plus, Trash2, Save, ArrowLeft, Check, Clock, GripVertical, BarChart3, HelpCircle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { API_URL } from '@/lib/config';
 
 interface Option {
   id: string;
@@ -121,7 +122,7 @@ export default function CreateQuiz() {
 
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:3001/api/quizzes', {
+      const res = await fetch(`${API_URL}/api/quizzes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

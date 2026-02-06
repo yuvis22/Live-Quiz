@@ -8,6 +8,7 @@ import { useUser, UserButton } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import { Copy, Plus, Play, SkipForward, Users, Clock, Check, BarChart3, Trophy, Loader2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { API_URL } from '@/lib/config';
 
 export default function HostDashboard() {
   const { user, isLoaded } = useUser();
@@ -53,7 +54,7 @@ export default function HostDashboard() {
 
   useEffect(() => {
     if (user) {
-      fetch(`http://localhost:3001/api/quizzes/${user.id}`)
+      fetch(`${API_URL}/api/quizzes/${user.id}`)
         .then(res => res.json())
         .then(data => setHistory(data))
         .catch(err => console.error(err));
@@ -78,7 +79,7 @@ export default function HostDashboard() {
     setLoading(true);
     try {
       // Pass Clerk User ID to backend
-      const res = await fetch('http://localhost:3001/api/seed', { 
+      const res = await fetch(`${API_URL}/api/seed`, { 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: user.id })
