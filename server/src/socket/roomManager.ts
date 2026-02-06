@@ -11,6 +11,7 @@ interface Player {
 interface Room {
   id: string;
   hostSocketId: string;
+  hostUserId: string; // To allow reconnects
   quiz: IQuiz;
   players: Map<string, Player>; // socketId -> Player
   currentQuestionIndex: number;
@@ -28,7 +29,7 @@ export class RoomManager {
     this.io = io;
   }
 
-  async createRoom(hostSocketId: string, quizId: string): Promise<string> {
+  async createRoom(hostSocketId: string, quizId: string, hostUserId: string): Promise<string> {
     const quiz = await Quiz.findById(quizId);
     if (!quiz) throw new Error('Quiz not found');
 
@@ -40,6 +41,7 @@ export class RoomManager {
     this.rooms.set(roomId, {
       id: roomId,
       hostSocketId,
+      hostUserId,
       quiz,
       players: new Map(),
       currentQuestionIndex: -1,
@@ -67,17 +69,78 @@ export class RoomManager {
     socket.join(roomId);
 
     // Notify everyone (especially host)
-    const playerList = Array.from(room.players.values()).map(p => ({
+    // Send updated list
+    this.broadcastPlayerList(roomId);
+    
+    console.log(`${username} joined room ${roomId}`);
+  }
+
+  reconnectHost(socket: Socket, roomId: string, userId: string) {
+     const room = this.rooms.get(roomId);
+     if (!room) {
+        socket.emit('ERROR', { message: 'Room not found' });
+        return;
+     }
+
+     if (room.hostUserId !== userId) {
+        socket.emit('ERROR', { message: 'Unauthorized: You are not the host' });
+        return;
+     }
+
+     // Update host socket
+     room.hostSocketId = socket.id;
+     socket.join(roomId);
+
+     // Send current state
+     socket.emit('PLAYER_JOINED', {
+        username: 'HOST',
+        playerCount: room.players.size,
+        players: Array.from(room.players.values()).map(p => ({
+            socketId: p.socketId,
+            username: p.username,
+            score: p.score
+        }))
+     });
+     
+     // Also send current question if any
+     if (room.currentQuestionIndex >= 0) {
+        const question = room.quiz.questions[room.currentQuestionIndex];
+        socket.emit('NEW_QUESTION', {
+            id: question.id,
+            type: question.type || 'MCQ',
+            text: question.text,
+            options: question.options,
+            timeLimit: 15
+        });
+        if (room.isLive) {
+            socket.emit('TICK', room.timeLeft);
+            // Send stats
+            const voteCounts: Record<string, number> = {};
+            question.options.forEach(opt => voteCounts[opt.id] = 0);
+            room.votes.forEach((vote) => {
+               if (voteCounts[vote]) voteCounts[vote]++;
+            });
+            socket.emit('LIVE_STATS', voteCounts);
+        }
+     }
+
+     console.log(`Host reconnected to room ${roomId}`);
+  }
+
+  private broadcastPlayerList(roomId: string) {
+     const room = this.rooms.get(roomId);
+     if (!room) return;
+
+     const playerList = Array.from(room.players.values()).map(p => ({
         socketId: p.socketId,
         username: p.username,
         score: p.score
     }));
     this.io.to(roomId).emit('PLAYER_JOINED', { 
-        username, 
+        username: '', // Not needed for update
         playerCount: room.players.size,
         players: playerList 
     });
-    console.log(`${username} joined room ${roomId}`);
   }
 
   startQuestion(socketId: string, roomId: string) {

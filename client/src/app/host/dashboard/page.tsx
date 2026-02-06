@@ -17,7 +17,7 @@ export default function HostDashboard() {
   const [copied, setCopied] = useState(false);
   const [history, setHistory] = useState<any[]>([]);
   
-  const { roomId, currentQuestion, timeLeft, voteStats, result, players, setRoomInfo, setQuestion, setTimeLeft, updateVoteStats, setResult, setPlayers } = useQuizStore();
+  const { roomId, currentQuestion, timeLeft, voteStats, result, players, isHost, setRoomInfo, setQuestion, setTimeLeft, updateVoteStats, setResult, setPlayers } = useQuizStore();
   const [playerCount, setPlayerCount] = useState(0);
 
   useEffect(() => {
@@ -56,17 +56,24 @@ export default function HostDashboard() {
 
   useEffect(() => {
     if (user) {
+      if (roomId && isHost) {
+          // Reconnect host logic to ensure socket joins the room
+          const socket = getSocket();
+          if (!socket.connected) socket.connect();
+          socket.emit('RECONNECT_HOST', { roomId, userId: user.id });
+      }
+
       fetch(`${API_URL}/api/quizzes/${user.id}`)
         .then(res => res.json())
         .then(data => setHistory(data))
         .catch(err => console.error(err));
     }
-  }, [user]);
+  }, [user, roomId, isHost]);
 
   const startSession = (quizId: string) => {
     setLoading(true);
     const socket = getSocket();
-    socket.emit('CREATE_ROOM', { quizId }, (response: any) => {
+    socket.emit('CREATE_ROOM', { quizId, userId: user?.id }, (response: any) => {
       if (response.success) {
         setRoomInfo(response.roomId, 'HOST', true);
       } else {
@@ -88,7 +95,7 @@ export default function HostDashboard() {
       });
       const { quizId } = await res.json();
       const socket = getSocket();
-      socket.emit('CREATE_ROOM', { quizId }, (response: any) => {
+      socket.emit('CREATE_ROOM', { quizId, userId: user.id }, (response: any) => {
         if (response.success) {
           setRoomInfo(response.roomId, 'HOST', true);
         } else {

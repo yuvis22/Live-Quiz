@@ -12,14 +12,18 @@ export const setupSocket = (io: Server) => {
       // TODO: Handle player disconnect from roomManager if needed
     });
 
-    socket.on('CREATE_ROOM', async ({ quizId }: { quizId: string }, callback: (res: any) => void) => {
+    socket.on('CREATE_ROOM', async ({ quizId, userId }: { quizId: string; userId: string }, callback: (res: any) => void) => {
       try {
-        const roomId = await roomManager.createRoom(socket.id, quizId);
-        socket.join(roomId); // CRITICAL: Host must join the room to receive events
+        const roomId = await roomManager.createRoom(socket.id, quizId, userId);
+        socket.join(roomId); 
         callback({ success: true, roomId });
       } catch (err: any) {
         callback({ success: false, error: err.message });
       }
+    });
+
+    socket.on('RECONNECT_HOST', ({ roomId, userId }: { roomId: string; userId: string }) => {
+        roomManager.reconnectHost(socket, roomId, userId);
     });
 
     socket.on('JOIN_ROOM', ({ roomId, username }: { roomId: string; username: string }) => {
