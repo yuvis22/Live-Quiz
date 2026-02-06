@@ -25,7 +25,7 @@ export default function HostDashboard() {
     if (!socket.connected) socket.connect();
 
     socket.on('PLAYER_JOINED', (data) => {
-      console.log('[DEBUG] Host received PLAYER_JOINED:', data);
+      console.log('[DEBUG] Host received PLAYER_JOINED:', JSON.stringify(data));
       setPlayerCount(data.playerCount);
       if (data.players) setPlayers(data.players);
     });
@@ -33,11 +33,17 @@ export default function HostDashboard() {
     socket.on('TICK', (time) => setTimeLeft(time));
     socket.on('LIVE_STATS', (stats) => updateVoteStats(stats));
     socket.on('ERROR', (data) => {
-      console.error('Socket Error:', data);
-      toast.error(data.message || 'Connection error');
+      console.error('Socket Error:', JSON.stringify(data));
+      
       if (data.message === 'Room not found') {
-         // Maybe reset state or redirect?
+         toast.error('Session expired. Please start a new one.');
+         // Critical: Reset state to force user to create a new room
+         const { reset } = useQuizStore.getState();
+         reset();
+         return;
       }
+      
+      toast.error(data.message || 'Connection error');
     });
 
     return () => {
