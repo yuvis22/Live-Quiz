@@ -7,6 +7,7 @@ import LiveChart from '@/components/LiveChart';
 import { useUser, UserButton } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import { Copy, Plus, Play, SkipForward, Users, Clock, Check, BarChart3, Trophy, Loader2 } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 export default function HostDashboard() {
   const { user, isLoaded } = useUser();
@@ -66,7 +67,7 @@ export default function HostDashboard() {
       if (response.success) {
         setRoomInfo(response.roomId, 'HOST', true);
       } else {
-        alert('Failed to start session: ' + response.error);
+        toast.error('Failed to start session: ' + response.error);
       }
       setLoading(false);
     });
@@ -88,7 +89,7 @@ export default function HostDashboard() {
         if (response.success) {
           setRoomInfo(response.roomId, 'HOST', true);
         } else {
-          alert('Failed to create room: ' + response.error);
+          toast.error('Failed to create room: ' + response.error);
         }
         setLoading(false);
       });
@@ -107,6 +108,7 @@ export default function HostDashboard() {
     if (roomId) {
       navigator.clipboard.writeText(roomId);
       setCopied(true);
+      toast.success('Code copied to clipboard!');
       setTimeout(() => setCopied(false), 2000);
     }
   };

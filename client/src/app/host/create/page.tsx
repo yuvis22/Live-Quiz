@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser, UserButton } from '@clerk/nextjs';
 import { Plus, Trash2, Save, ArrowLeft, Check, Clock, GripVertical, BarChart3, HelpCircle } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 interface Option {
   id: string;
@@ -114,7 +115,7 @@ export default function CreateQuiz() {
 
   const handleSave = async () => {
     if (!title || questions.some(q => !q.text || q.options.some(o => !o.text))) {
-      alert('Please fill in all fields');
+      toast.error('Please fill in all fields');
       return;
     }
 
@@ -138,13 +139,14 @@ export default function CreateQuiz() {
       
       const data = await res.json();
       if (data.success) {
+        toast.success('Presentation saved!');
         router.push('/host/dashboard');
       } else {
-        alert('Failed to save');
+        toast.error('Failed to save');
       }
     } catch (err) {
       console.error(err);
-      alert('Error saving quiz');
+      toast.error('Error saving quiz');
     } finally {
       setLoading(false);
     }

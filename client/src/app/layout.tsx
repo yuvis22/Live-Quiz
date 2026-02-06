@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Space_Grotesk } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
+import { Toaster } from "react-hot-toast";
 import "./globals.css";
 
 const inter = Inter({
@@ -30,6 +31,7 @@ export default function RootLayout({
       <html lang="en">
         <body className={`${inter.variable} ${spaceGrotesk.variable} antialiased`}>
           {children}
+          <Toaster position="bottom-right" />
         </body>
       </html>
     </ClerkProvider>
