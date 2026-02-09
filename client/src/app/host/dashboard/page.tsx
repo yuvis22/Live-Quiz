@@ -6,7 +6,7 @@ import { useQuizStore } from '@/store/useQuizStore';
 import LiveChart from '@/components/LiveChart';
 import { useUser, UserButton } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
-import { Copy, Plus, Play, SkipForward, Users, Clock, Check, BarChart3, Trophy, Loader2 } from 'lucide-react';
+import { Copy, Plus, Play, SkipForward, Users, Clock, Check, BarChart3, Trophy, Loader2, AlertTriangle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { API_URL } from '@/lib/config';
 
@@ -19,17 +19,27 @@ export default function HostDashboard() {
   const [reports, setReports] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<'quizzes' | 'reports'>('quizzes');
   
-  const { roomId, currentQuestion, timeLeft, voteStats, result, players, isHost, setRoomInfo, setQuestion, setTimeLeft, updateVoteStats, setResult, setPlayers } = useQuizStore();
+  const { roomId, currentQuestion, timeLeft, voteStats, result, players, isHost, setRoomInfo, setQuestion, setTimeLeft, updateVoteStats, setResult, setPlayers, addPlayer } = useQuizStore();
   const [playerCount, setPlayerCount] = useState(0);
+  const [showTerminateModal, setShowTerminateModal] = useState(false);
 
   useEffect(() => {
     const socket = getSocket();
     if (!socket.connected) socket.connect();
 
+    socket.on('PLAYER_LIST', (data) => {
+      setPlayerCount(data.playerCount);
+      setPlayers(data.players);
+    });
+
     socket.on('PLAYER_JOINED', (data) => {
       console.log('[DEBUG] Host received PLAYER_JOINED:', JSON.stringify(data));
       setPlayerCount(data.playerCount);
-      if (data.players) setPlayers(data.players);
+      if (data.players) {
+        setPlayers(data.players);
+      } else if (data.player) {
+        addPlayer(data.player);
+      }
     });
     socket.on('NEW_QUESTION', (data) => setQuestion(data));
     socket.on('TICK', (time) => setTimeLeft(time));
@@ -37,7 +47,17 @@ export default function HostDashboard() {
     socket.on('ERROR', (data) => {
       console.error('Socket Error:', JSON.stringify(data));
       
-      if (data.message === 'Room not found') {
+      let errorData = data;
+      if (typeof data === 'string') {
+        try {
+            errorData = JSON.parse(data);
+        } catch (e) {
+            console.error('Failed to parse error data:', e);
+            errorData = { message: data };
+        }
+      }
+
+      if (errorData.message === 'Room not found') {
          toast.error('Session expired. Please start a new one.');
          // Critical: Reset state to force user to create a new room
          const { reset } = useQuizStore.getState();
@@ -45,10 +65,11 @@ export default function HostDashboard() {
          return;
       }
       
-      toast.error(data.message || 'Connection error');
+      toast.error(errorData.message || 'Connection error');
     });
 
     return () => {
+      socket.off('PLAYER_LIST');
       socket.off('PLAYER_JOINED');
       socket.off('NEW_QUESTION');
       socket.off('TICK');
@@ -220,7 +241,8 @@ export default function HostDashboard() {
                   {reports.map((report: any) => (
                     <div 
                       key={report._id} 
-                      className="p-3 bg-slate-50 rounded-lg border border-slate-100 flex justify-between items-center group hover:bg-white hover:border-blue-200 transition-all"
+                      onClick={() => router.push(`/host/reports/${report._id}`)}
+                      className="p-3 bg-slate-50 rounded-lg border border-slate-100 flex justify-between items-center group hover:bg-white hover:border-blue-200 transition-all cursor-pointer"
                     >
                       <div>
                          <p className="font-medium text-slate-700">{report.quizId?.title || 'Untitled Session'}</p>
@@ -325,14 +347,7 @@ export default function HostDashboard() {
             </div>
                         <div className="mt-auto pt-6 text-center space-y-4">
                <button
-                 onClick={() => {
-                   if (confirm('Are you sure you want to end this session?')) {
-                     getSocket().emit('TERMINATE_ROOM', { roomId });
-                     toast.success('Session Terminated');
-                     const { reset } = useQuizStore.getState();
-                     reset();
-                   }
-                 }}
+                 onClick={() => setShowTerminateModal(true)}
                  className="w-full py-2 bg-red-50 hover:bg-red-100 text-red-600 font-medium rounded-lg text-sm border border-red-200 transition-colors"
                >
                  Terminate Session
@@ -469,6 +484,45 @@ export default function HostDashboard() {
              )}
           </div>
         </div>
+
+        
+        {/* Terminate Session Modal */}
+        {showTerminateModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-fade-in">
+             <div className="bg-white rounded-2xl shadow-xl max-w-md w-full overflow-hidden animate-scale-in">
+                <div className="p-6">
+                   <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-4 mx-auto">
+                      <AlertTriangle className="w-6 h-6 text-red-600" />
+                   </div>
+                   <h3 className="text-xl font-bold text-slate-900 text-center mb-2">End Session?</h3>
+                   <p className="text-slate-500 text-center text-sm leading-relaxed mb-6">
+                      Are you sure you want to end this session? This will disconnect all players and generate a final report. This action cannot be undone.
+                   </p>
+                   
+                   <div className="flex gap-3">
+                      <button 
+                        onClick={() => setShowTerminateModal(false)}
+                        className="flex-1 py-2.5 bg-white border border-slate-300 text-slate-700 font-semibold rounded-xl hover:bg-slate-50 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <button 
+                        onClick={() => {
+                           getSocket().emit('TERMINATE_ROOM', { roomId });
+                           toast.success('Session Terminated');
+                           const { reset } = useQuizStore.getState();
+                           reset();
+                           setShowTerminateModal(false);
+                        }}
+                        className="flex-1 py-2.5 bg-red-600 text-white font-semibold rounded-xl hover:bg-red-700 shadow-lg shadow-red-500/20 transition-all"
+                      >
+                        End Session
+                      </button>
+                   </div>
+                </div>
+             </div>
+          </div>
+        )}
 
       </div>
     </main>

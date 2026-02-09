@@ -4,17 +4,26 @@ import { Server } from 'socket.io';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import { Redis } from 'ioredis';
+import { createAdapter } from '@socket.io/redis-adapter';
 import { setupSocket } from './socket/index';
 
 dotenv.config();
 
 const app = express();
 const httpServer = createServer(app);
+
+// Setup Redis
+const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+const pubClient = new Redis(redisUrl);
+const subClient = pubClient.duplicate();
+
 const io = new Server(httpServer, {
   cors: {
     origin: "*", // Allow all for now, restrict in production
     methods: ["GET", "POST"]
-  }
+  },
+  adapter: createAdapter(pubClient, subClient)
 });
 
 const PORT = process.env.PORT || 3001;
@@ -112,8 +121,22 @@ app.get('/api/results/:userId', async (req, res) => {
 
      res.json(results);
   } catch (err) {
-    console.error(err);
+      console.error(err);
     res.status(500).json({ error: 'Failed to fetch results' });
+  }
+});
+
+// Get Single Report
+app.get('/api/reports/:id', async (req, res) => {
+  try {
+    const report = await Leaderboard.findById(req.params.id).populate('quizId', 'title questions');
+    if (!report) {
+      return res.status(404).json({ error: 'Report not found' });
+    }
+    res.json(report);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch report' });
   }
 });
 
@@ -142,7 +165,7 @@ app.post('/api/quizzes', async (req, res) => {
 });
 
 // Setup Socket.io logic
-setupSocket(io);
+setupSocket(io, pubClient);
 
 mongoose.connect(MONGODB_URI)
   .then(() => {
