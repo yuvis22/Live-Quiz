@@ -1,6 +1,7 @@
 import { Server, Socket } from 'socket.io';
 import { Quiz, IQuiz } from '../models/Quiz';
 import { Leaderboard } from '../models/Leaderboard';
+import { Redis } from 'ioredis';
 
 interface Player {
   socketId: string;
@@ -28,11 +29,35 @@ interface Room {
 }
 
 export class RoomManager {
-  private rooms: Map<string, Room> = new Map();
   private io: Server;
+  private redis: Redis;
 
-  constructor(io: Server) {
+  constructor(io: Server, redis: Redis) {
     this.io = io;
+    this.redis = redis;
+  }
+
+  private async getRoom(roomId: string): Promise<Room | null> {
+      const data = await this.redis.get(`room:${roomId}`);
+      if (!data) return null;
+      
+      const parsed = JSON.parse(data);
+      // Revive Maps
+      parsed.players = new Map(parsed.players);
+      parsed.votes = new Map(parsed.votes);
+      parsed.timer = null; 
+      
+      return parsed;
+  }
+
+  private async saveRoom(roomId: string, room: Room) {
+      const toSave = {
+          ...room,
+          players: Array.from(room.players.entries()),
+          votes: Array.from(room.votes.entries()),
+          timer: null 
+      };
+      await this.redis.set(`room:${roomId}`, JSON.stringify(toSave), 'EX', 86400); 
   }
 
   async createRoom(hostSocketId: string, quizId: string, hostUserId: string): Promise<string> {
@@ -40,29 +65,33 @@ export class RoomManager {
     if (!quiz) throw new Error('Quiz not found');
 
     let roomId = '';
+    let exists = 0;
     do {
        roomId = Math.random().toString(36).substring(2, 8).toUpperCase();
-    } while (this.rooms.has(roomId));
+       exists = await this.redis.exists(`room:${roomId}`);
+    } while (exists === 1);
     
-    this.rooms.set(roomId, {
+    const room: Room = {
       id: roomId,
       hostSocketId,
       hostUserId,
       quiz,
-      players: new Map(),
+      players: new Map(), // We will optimize this later if needed, but for now we serialize Map as Array/Object
       currentQuestionIndex: -1,
       isLive: false,
       timer: null,
       timeLeft: 0,
       votes: new Map()
-    });
+    };
+    
+    await this.saveRoom(roomId, room);
 
     console.log(`Room ${roomId} created by ${hostSocketId}`);
     return roomId;
   }
 
-  joinRoom(socket: Socket, roomId: string, username: string) {
-    const room = this.rooms.get(roomId);
+  async joinRoom(socket: Socket, roomId: string, username: string) {
+    const room = await this.getRoom(roomId);
     if (!room) {
       socket.emit('ERROR', { message: 'Room not found' });
       return;
@@ -77,17 +106,30 @@ export class RoomManager {
         answers: [] 
     };
     room.players.set(socket.id, player);
+    
+    await this.saveRoom(roomId, room); // Save state
+    
     socket.join(roomId);
 
-    // Notify everyone (especially host)
-    // Send updated list
-    this.broadcastPlayerList(roomId);
+    // 1. Send full list to NEW player
+    const playerList = Array.from(room.players.values()).map(p => ({
+        socketId: p.socketId,
+        username: p.username,
+        score: p.score
+    }));
+    socket.emit('PLAYER_LIST', { players: playerList, playerCount: room.players.size });
+
+    // 2. Send delta update to existing players (O(N) -> O(1) bandwidth per client)
+    socket.to(roomId).emit('PLAYER_JOINED', { 
+        player: { socketId: player.socketId, username: player.username, score: player.score },
+        playerCount: room.players.size 
+    });
     
     console.log(`${username} joined room ${roomId}`);
   }
 
-  reconnectHost(socket: Socket, roomId: string, userId: string) {
-     const room = this.rooms.get(roomId);
+  async reconnectHost(socket: Socket, roomId: string, userId: string) {
+     const room = await this.getRoom(roomId);
      if (!room) {
         socket.emit('ERROR', { message: 'Room not found' });
         return;
@@ -100,11 +142,12 @@ export class RoomManager {
 
      // Update host socket
      room.hostSocketId = socket.id;
+     await this.saveRoom(roomId, room);
+     
      socket.join(roomId);
 
      // Send current state
-     socket.emit('PLAYER_JOINED', {
-        username: 'HOST',
+     socket.emit('PLAYER_LIST', {
         playerCount: room.players.size,
         players: Array.from(room.players.values()).map(p => ({
             socketId: p.socketId,
@@ -140,25 +183,9 @@ export class RoomManager {
      console.log(`Host reconnected to room ${roomId}`);
   }
 
-  private broadcastPlayerList(roomId: string) {
-     const room = this.rooms.get(roomId);
-     if (!room) return;
 
-     const playerList = Array.from(room.players.values()).map(p => ({
-        socketId: p.socketId,
-        username: p.username,
-        score: p.score
-    }));
-    console.log(`[DEBUG] Broadcasting PLAYER_JOINED to room ${roomId}. Players:`, playerList.length);
-    this.io.to(roomId).emit('PLAYER_JOINED', { 
-        username: '', // Not needed for update
-        playerCount: room.players.size,
-        players: playerList 
-    });
-  }
-
-  startQuestion(socketId: string, roomId: string) {
-    const room = this.rooms.get(roomId);
+  async startQuestion(socketId: string, roomId: string) {
+    const room = await this.getRoom(roomId);
     if (!room) return;
     if (room.hostSocketId !== socketId) return; // Only host can start
 
@@ -181,10 +208,6 @@ export class RoomManager {
           console.log(`Leaderboard saved for room ${roomId}`);
       }).catch(err => console.error('Failed to save leaderboard:', err));
 
-      leaderboard.save().then(() => {
-          console.log(`Leaderboard saved for room ${roomId}`);
-      }).catch(err => console.error('Failed to save leaderboard:', err));
-
       const allPlayers = Array.from(room.players.values()).sort((a,b) => b.score - a.score);
       this.io.to(roomId).emit('QUIZ_ENDED', {
         leaderboard: allPlayers.map(p => ({
@@ -199,6 +222,7 @@ export class RoomManager {
     room.currentQuestionIndex++;
     room.votes.clear();
     room.timeLeft = 15; // Specs say 15s
+    await this.saveRoom(roomId, room);
 
     const question = room.quiz.questions[room.currentQuestionIndex];
     
@@ -214,39 +238,47 @@ export class RoomManager {
     });
 
     // Start Timer
-    if (room.timer) clearInterval(room.timer);
     
-    room.timer = setInterval(() => {
-      room.timeLeft--;
-      this.io.to(roomId).emit('TICK', room.timeLeft);
+    const timer = setInterval(async () => {
+      // Fetch latest state to update time
+      const r = await this.getRoom(roomId);
+      if (!r) { clearInterval(timer); return; }
+      
+      r.timeLeft--;
+      if (r.timeLeft % 5 === 0) await this.saveRoom(roomId, r); // Save every 5s to reduce writes
 
-      if (room.timeLeft <= 0) {
+      this.io.to(roomId).emit('TICK', r.timeLeft);
+
+      if (r.timeLeft <= 0) {
+        await this.saveRoom(roomId, r); // Ensure final state saved
+        clearInterval(timer);
         this.endQuestion(roomId);
       }
     }, 1000);
   }
 
-  submitVote(socket: Socket, roomId: string, optionId: string) {
-    const room = this.rooms.get(roomId);
+  async submitVote(socket: Socket, roomId: string, optionId: string) {
+    const room = await this.getRoom(roomId);
     if (!room || room.timeLeft <= 0) return;
     
     if (!room.players.has(socket.id)) return; // Must be a player
 
     room.votes.set(socket.id, optionId);
+    await this.saveRoom(roomId, room);
 
     // Calculate live stats for chart
     const voteCounts: Record<string, number> = {};
     room.quiz.questions[room.currentQuestionIndex].options.forEach(opt => voteCounts[opt.id] = 0);
     
     room.votes.forEach((vote) => {
-      if (voteCounts[vote]) voteCounts[vote]++;
+      if (voteCounts[vote] !== undefined) voteCounts[vote]++;
     });
 
     this.io.to(roomId).emit('LIVE_STATS', voteCounts);
   }
 
-  endQuestion(roomId: string) {
-    const room = this.rooms.get(roomId);
+  async endQuestion(roomId: string) {
+    const room = await this.getRoom(roomId);
     if (!room) return;
 
     if (room.timer) {
@@ -270,13 +302,10 @@ export class RoomManager {
                 questionId: currentQ.id,
                 optionId: vote,
                 isCorrect,
-                timeTaken: 0 // TODO: Implement exact timing if needed later
+                timeTaken: 0 
             });
         }
       });
-      
-      // Also record incorrect/missed answers for players who didn't vote or voted wrong (if logic assumes missing = wrong)
-      // For now, we only push "votes". If they didn't vote, no answer recorded.
     } else if (isPoll) {
         // Record poll votes too
         room.votes.forEach((vote, socketId) => {
@@ -285,12 +314,14 @@ export class RoomManager {
                 player.answers.push({
                     questionId: currentQ.id,
                     optionId: vote,
-                    isCorrect: true, // Poll answers are always "valid"
+                    isCorrect: true, 
                     timeTaken: 0
                 });
             }
         });
     }
+
+    await this.saveRoom(roomId, room);
 
     // Calculate final stats for the chart
     const voteCounts: Record<string, number> = {};
@@ -310,17 +341,14 @@ export class RoomManager {
     });
   }
 
-  terminateRoom(socketId: string, roomId: string) {
-    const room = this.rooms.get(roomId);
+  async terminateRoom(socketId: string, roomId: string) {
+    const room = await this.getRoom(roomId);
     if (!room) return;
     if (room.hostSocketId !== socketId) return; // Only host can terminate
 
     console.log(`Room ${roomId} terminated by host`);
     // Notify all clients with their final stats
     const allPlayers = Array.from(room.players.values()).sort((a,b) => b.score - a.score);
-    
-    // We need to send personalized info to each socket, OR broadcast the full leaderboard and let client find themselves.
-    // Broadcasting full leaderboard is easier and supports "See who won".
     
     this.io.to(roomId).emit('QUIZ_ENDED', {
         leaderboard: allPlayers.map(p => ({
@@ -333,6 +361,6 @@ export class RoomManager {
 
     // Cleanup
     if (room.timer) clearInterval(room.timer);
-    this.rooms.delete(roomId);
+    await this.redis.del(`room:${roomId}`);
   }
 }

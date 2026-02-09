@@ -1,8 +1,10 @@
 import { Server, Socket } from 'socket.io';
 import { RoomManager } from './roomManager';
 
-export const setupSocket = (io: Server) => {
-  const roomManager = new RoomManager(io);
+import { Redis } from 'ioredis';
+
+export const setupSocket = (io: Server, redis: Redis) => {
+  const roomManager = new RoomManager(io, redis);
 
   io.on('connection', (socket: Socket) => {
     console.log(`User connected: ${socket.id}`);

@@ -29,6 +29,7 @@ interface QuizState {
   updateVoteStats: (stats: Record<string, number>) => void;
   setLeaderboard: (data: any[]) => void;
   setPlayers: (players: any[]) => void;
+  addPlayer: (player: any) => void;
   setResult: (result: { correctOption: string | null; leaderboard: any[]; isPoll?: boolean } | null) => void;
   reset: () => void;
 }
@@ -53,6 +54,11 @@ export const useQuizStore = create<QuizState>()(
       updateVoteStats: (stats) => set({ voteStats: stats }),
       setLeaderboard: (data) => set({ leaderboard: data }),
       setPlayers: (players) => set({ players }),
+      addPlayer: (player) => set((state) => {
+        // Avoid duplicates
+        if (state.players.find(p => p.socketId === player.socketId)) return state;
+        return { players: [...state.players, player] };
+      }),
       setResult: (result) => set({ result }),
       reset: () => set({ 
         roomId: null, 
