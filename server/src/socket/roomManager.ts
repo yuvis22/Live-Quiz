@@ -287,6 +287,8 @@ export class RoomManager {
     }
 
     const currentQ = room.quiz.questions[room.currentQuestionIndex];
+    if (!currentQ) return;
+
     const correctOption = currentQ.correctOptionId;
     const isPoll = currentQ.type === 'POLL';
 
