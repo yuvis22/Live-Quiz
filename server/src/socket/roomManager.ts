@@ -31,10 +31,12 @@ interface Room {
 export class RoomManager {
   private io: Server;
   private redis: Redis;
+  private timers: Map<string, NodeJS.Timeout>;
 
   constructor(io: Server, redis: Redis) {
     this.io = io;
     this.redis = redis;
+    this.timers = new Map();
   }
 
   private async getRoom(roomId: string): Promise<Room | null> {
@@ -238,11 +240,16 @@ export class RoomManager {
     });
 
     // Start Timer
-    
+    if (this.timers.has(roomId)) clearInterval(this.timers.get(roomId)!);
+
     const timer = setInterval(async () => {
       // Fetch latest state to update time
       const r = await this.getRoom(roomId);
-      if (!r) { clearInterval(timer); return; }
+      if (!r) { 
+          if(this.timers.has(roomId)) clearInterval(this.timers.get(roomId)!);
+          this.timers.delete(roomId);
+          return; 
+      }
       
       r.timeLeft--;
       if (r.timeLeft % 5 === 0) await this.saveRoom(roomId, r); // Save every 5s to reduce writes
@@ -251,10 +258,13 @@ export class RoomManager {
 
       if (r.timeLeft <= 0) {
         await this.saveRoom(roomId, r); // Ensure final state saved
-        clearInterval(timer);
+        if(this.timers.has(roomId)) clearInterval(this.timers.get(roomId)!);
+        this.timers.delete(roomId);
         this.endQuestion(roomId);
       }
     }, 1000);
+    
+    this.timers.set(roomId, timer);
   }
 
   async submitVote(socket: Socket, roomId: string, optionId: string) {
@@ -281,9 +291,9 @@ export class RoomManager {
     const room = await this.getRoom(roomId);
     if (!room) return;
 
-    if (room.timer) {
-      clearInterval(room.timer);
-      room.timer = null;
+    if (this.timers.has(roomId)) {
+      clearInterval(this.timers.get(roomId)!);
+      this.timers.delete(roomId);
     }
 
     const currentQ = room.quiz.questions[room.currentQuestionIndex];
@@ -362,7 +372,10 @@ export class RoomManager {
     this.io.to(roomId).emit('ROOM_TERMINATED');
 
     // Cleanup
-    if (room.timer) clearInterval(room.timer);
+    if (this.timers.has(roomId)) {
+        clearInterval(this.timers.get(roomId)!);
+        this.timers.delete(roomId);
+    }
     await this.redis.del(`room:${roomId}`);
   }
 }
