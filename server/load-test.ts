@@ -61,7 +61,11 @@ function spawnRoom(roomIndex) {
     });
 
     hostSocket.on("NEW_QUESTION", (data) => {
-        console.log(`📢 Room ${currentRoomId} Question ${data.currentQuestionIndex}/${data.totalQuestions}`);
+        if (roomIndex === 0) console.log(`📢 Room ${currentRoomId} Question ${data.currentQuestionIndex}/${data.totalQuestions}`);
+    });
+
+    hostSocket.on("TICK", (timeLeft) => {
+        if (roomIndex === 0) console.log(`⏳ Room ${currentRoomId} TICK: ${timeLeft}`);
     });
 
     // 4. Handle Question Ends -> Next Question

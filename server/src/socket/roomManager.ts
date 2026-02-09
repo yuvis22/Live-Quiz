@@ -240,31 +240,43 @@ export class RoomManager {
     });
 
     // Start Timer
-    if (this.timers.has(roomId)) clearInterval(this.timers.get(roomId)!);
+    if (this.timers.has(roomId)) {
+        clearTimeout(this.timers.get(roomId)!);
+        this.timers.delete(roomId);
+    }
 
-    const timer = setInterval(async () => {
+    const startTick = async () => {
       // Fetch latest state to update time
       const r = await this.getRoom(roomId);
       if (!r) { 
-          if(this.timers.has(roomId)) clearInterval(this.timers.get(roomId)!);
           this.timers.delete(roomId);
           return; 
       }
       
+      console.log(`[Timer Debug] Room ${roomId} Tick Start: ${r.timeLeft}`);
       r.timeLeft--;
-      if (r.timeLeft % 5 === 0) await this.saveRoom(roomId, r); // Save every 5s to reduce writes
+      console.log(`[Timer Debug] Room ${roomId} Updated to: ${r.timeLeft}`);
+
+      // Save every ticking for accuracy (or less often if performance needed)
+      // Since race condition was the issue, let's verify every tick saves correctly
+      await this.saveRoom(roomId, r); 
+      console.log(`[Timer Debug] Room ${roomId} Saved.`);
 
       this.io.to(roomId).emit('TICK', r.timeLeft);
 
       if (r.timeLeft <= 0) {
-        await this.saveRoom(roomId, r); // Ensure final state saved
-        if(this.timers.has(roomId)) clearInterval(this.timers.get(roomId)!);
         this.timers.delete(roomId);
         this.endQuestion(roomId);
+      } else {
+        // Schedule next tick
+        const timeout = setTimeout(startTick, 1000);
+        this.timers.set(roomId, timeout);
       }
-    }, 1000);
-    
-    this.timers.set(roomId, timer);
+    };
+
+    // Initial delay + start
+    const initialTimeout = setTimeout(startTick, 1000);
+    this.timers.set(roomId, initialTimeout);
   }
 
   async submitVote(socket: Socket, roomId: string, optionId: string) {
