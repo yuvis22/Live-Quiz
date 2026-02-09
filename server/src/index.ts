@@ -18,6 +18,14 @@ const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
 const pubClient = new Redis(redisUrl);
 const subClient = pubClient.duplicate();
 
+pubClient.on('error', (err) => {
+  console.error('Redis Pub Client Error:', err);
+});
+
+subClient.on('error', (err) => {
+  console.error('Redis Sub Client Error:', err);
+});
+
 const io = new Server(httpServer, {
   cors: {
     origin: "*", // Allow all for now, restrict in production
