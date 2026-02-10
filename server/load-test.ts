@@ -9,7 +9,7 @@ const PLAYERS_PER_ROOM = Math.floor(TOTAL_CLIENTS / ROOM_COUNT);
 const SPAWN_INTERVAL_MS = 20;  
 
 // WE NEED A VALID QUIZ ID FROM YOUR DATABASE for this to work
-const VALID_QUIZ_ID = "6989a5e20ceec6cae8e1dd82"; 
+const VALID_QUIZ_ID = "698ac1cbd13de8262a6418a5"; 
 
 console.log(`🚀 Starting Load Test on ${TARGET_URL}`);
 console.log(`🎯 Simulating ${TOTAL_CLIENTS} players across ${ROOM_COUNT} rooms`);
