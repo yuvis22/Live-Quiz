@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser, UserButton } from '@clerk/nextjs';
-import { Plus, Trash2, Save, ArrowLeft, Check, Clock, GripVertical, BarChart3, HelpCircle } from 'lucide-react';
+import { Plus, Trash2, Save, Check, Clock, BarChart3, HelpCircle } from 'lucide-react';
+import HostNavbar from '@/components/HostNavbar';
 import { toast } from 'react-hot-toast';
 import { API_URL } from '@/lib/config';
 
@@ -155,24 +156,15 @@ export default function CreateQuiz() {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-20">
-      <nav className="bg-white border-b border-slate-200 px-6 h-16 flex items-center justify-between sticky top-0 z-50">
-         <div className="flex items-center gap-4">
-           <button onClick={() => router.back()} className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors">
-              <ArrowLeft className="w-5 h-5" />
-           </button>
-           <span className="font-bold text-lg">Create Presentation</span>
-         </div>
-         <div className="flex items-center gap-4">
-            <button
-              onClick={handleSave}
-              disabled={loading}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg flex items-center gap-2 transition-all shadow-sm"
-            >
-              {loading ? 'Saving...' : <><Save className="w-4 h-4" /> Save</>}
-            </button>
-           <UserButton />
-         </div>
-      </nav>
+      <HostNavbar  actions={
+         <button
+            onClick={handleSave}
+            disabled={loading}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg flex items-center gap-2 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? 'Saving...' : <><Save className="w-4 h-4" /> Save Presentation</>}
+          </button>
+      } />
 
       <div className="max-w-4xl mx-auto px-6 py-8 space-y-8">
         

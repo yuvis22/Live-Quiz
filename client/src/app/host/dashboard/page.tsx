@@ -10,6 +10,7 @@ import { Copy, Plus, Play, SkipForward, Users, Clock, Check, BarChart3, Trophy, 
 import { toast } from 'react-hot-toast';
 import { API_URL } from '@/lib/config';
 import { useHostStore } from '@/store/useHostStore';
+import HostNavbar from '@/components/HostNavbar';
 
 export default function HostDashboard() {
   const { user, isLoaded } = useUser();
@@ -176,21 +177,7 @@ export default function HostDashboard() {
   if (!roomId) {
     return (
       <main className="min-h-screen bg-slate-50 font-sans text-slate-900">
-        <nav className="bg-white border-b border-slate-200 px-6 h-16 flex items-center justify-between sticky top-0 z-10">
-           <div className="flex items-center gap-8">
-               <div className="flex items-center gap-2">
-                 <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold">Q</div>
-                 <span className="font-bold text-lg hidden md:block">Qorum</span>
-               </div>
-               <div className="hidden md:flex items-center gap-6">
-                   <button onClick={() => router.push('/host/dashboard')} className="text-sm font-semibold text-blue-600">Dashboard</button>
-                   <button onClick={() => router.push('/host/quizzes')} className="text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors">Quizzes</button>
-                   <button onClick={() => router.push('/host/reports')} className="text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors">Reports</button>
-                   <button onClick={() => router.push('/host/students')} className="text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors">Students</button>
-               </div>
-           </div>
-           <UserButton />
-        </nav>
+        <HostNavbar />
 
         <div className="max-w-7xl mx-auto p-6 space-y-8">
             {/* 1. Welcome & Stats */}

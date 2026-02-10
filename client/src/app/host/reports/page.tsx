@@ -19,6 +19,7 @@ import {
 import toast from 'react-hot-toast';
 import { API_URL } from '@/lib/config';
 import { useHostStore } from '@/store/useHostStore';
+import HostNavbar from '@/components/HostNavbar';
 
 function ReportsContent() {
   const { user, isLoaded } = useUser();
@@ -64,21 +65,7 @@ function ReportsContent() {
 
   return (
     <main className="min-h-screen bg-slate-50 font-sans text-slate-900">
-        <nav className="bg-white border-b border-slate-200 px-6 h-16 flex items-center justify-between sticky top-0 z-10">
-           <div className="flex items-center gap-4">
-             <button 
-                onClick={() => router.push('/host/dashboard')}
-                className="p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-500"
-             >
-                <ArrowLeft className="w-5 h-5" />
-             </button>
-             <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold">Q</div>
-                <span className="font-bold text-lg">Past Reports</span>
-             </div>
-           </div>
-           <UserButton />
-        </nav>
+        <HostNavbar />
 
         <div className="max-w-5xl mx-auto p-6">
             <div className="flex flex-col md:flex-row gap-6 justify-between items-start md:items-center mb-8">

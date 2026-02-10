@@ -6,6 +6,7 @@ import { getSocket } from '@/lib/socket';
 import { useQuizStore } from '@/store/useQuizStore';
 import { ArrowRight, BarChart3, Users, Presentation, MessageCircle, PieChart, Zap, CheckCircle2 } from 'lucide-react';
 import { SignInButton, SignedIn, SignedOut, UserButton } from '@clerk/nextjs';
+import HostNavbar from '@/components/HostNavbar';
 
 export default function Home() {
   const router = useRouter();
@@ -23,23 +24,26 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-white text-slate-900 font-sans selection:bg-blue-100 selection:text-blue-900">
       {/* Navbar */}
-      <nav className="sticky top-0 w-full bg-white/80 backdrop-blur-md border-b border-slate-200 z-50">
-        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center shadow-sm">
-              <BarChart3 className="w-6 h-6 text-white" />
+      <SignedIn>
+        <HostNavbar />
+      </SignedIn>
+      <SignedOut>
+        <nav className="sticky top-0 w-full bg-white/80 backdrop-blur-md border-b border-slate-200 z-50">
+          <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center shadow-sm">
+                <BarChart3 className="w-6 h-6 text-white" />
+              </div>
+              <span className="font-extrabold text-2xl tracking-tight text-slate-900">Qorum</span>
             </div>
-            <span className="font-extrabold text-2xl tracking-tight text-slate-900">Qorum</span>
-          </div>
-          
-          <div className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-600">
-            <a href="#features" className="hover:text-blue-600 transition-colors">Features</a>
-            <a href="#solutions" className="hover:text-blue-600 transition-colors">Solutions</a>
-            <a href="#pricing" className="hover:text-blue-600 transition-colors">Pricing</a>
-          </div>
+            
+            <div className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-600">
+              <a href="#features" className="hover:text-blue-600 transition-colors">Features</a>
+              <a href="#solutions" className="hover:text-blue-600 transition-colors">Solutions</a>
+              <a href="#pricing" className="hover:text-blue-600 transition-colors">Pricing</a>
+            </div>
 
-          <div className="flex items-center gap-4">
-            <SignedOut>
+            <div className="flex items-center gap-4">
               <SignInButton mode="modal">
                 <button className="px-5 py-2.5 font-medium text-slate-600 hover:text-blue-600 transition-colors">
                   Log in
@@ -50,20 +54,10 @@ export default function Home() {
                   Sign up
                 </button>
               </SignInButton>
-            </SignedOut>
-
-            <SignedIn>
-              <button 
-                onClick={() => router.push('/host/dashboard')}
-                className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-full shadow-sm shadow-blue-200 transition-all hover:shadow-md mr-2"
-              >
-                Dashboard
-              </button>
-              <UserButton afterSignOutUrl="/" />
-            </SignedIn>
+            </div>
           </div>
-        </div>
-      </nav>
+        </nav>
+      </SignedOut>
 
       {/* Hero Section */}
       <div className="relative overflow-hidden bg-slate-50 border-b border-slate-200">
