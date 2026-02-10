@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useUser, UserButton } from '@clerk/nextjs';
 import axios from 'axios';
@@ -20,7 +20,7 @@ import toast from 'react-hot-toast';
 import { API_URL } from '@/lib/config';
 import { useHostStore } from '@/store/useHostStore';
 
-export default function ReportsPage() {
+function ReportsContent() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -211,5 +211,21 @@ export default function ReportsPage() {
             </div>
         </div>
     </main>
+  );
+}
+
+
+export default function ReportsPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex h-screen w-full items-center justify-center bg-slate-50 text-slate-400">
+        <div className="flex flex-col items-center gap-2">
+            <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+            <span className="text-sm font-medium">Loading Results...</span>
+        </div>
+      </div>
+    }>
+      <ReportsContent />
+    </Suspense>
   );
 }
