@@ -16,6 +16,8 @@ export default function QuizRoom() {
   const [hasVoted, setHasVoted] = useState(false);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [waitingMessage, setWaitingMessage] = useState('Waiting for presenter...');
+  const [error, setError] = useState<string | null>(null);
+
   interface Result {
       correctOption: string;
       leaderboard: any[];
@@ -44,6 +46,15 @@ export default function QuizRoom() {
       setSelectedOption(null);
       setResult(null);
       setWaitingMessage('');
+    });
+    
+    socket.on('ERROR', (data) => {
+        let msg = typeof data === 'string' ? data : data.message;
+        if (msg === 'Room not found') {
+            setError('Room not found or session expired.');
+        } else {
+            // Toast or minor error
+        }
     });
 
     socket.on('TICK', (time) => setTimeLeft(time));
@@ -86,6 +97,26 @@ export default function QuizRoom() {
   };
 
   if (!username) return null;
+
+  if (error) {
+      return (
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
+            <div className="text-center max-w-sm w-full bg-white p-8 rounded-2xl shadow-xl border border-slate-100">
+                <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <span className="text-2xl font-bold">!</span>
+                </div>
+                <h2 className="text-xl font-bold text-slate-900 mb-2">Oops!</h2>
+                <p className="text-slate-500 mb-6">{error}</p>
+                <button 
+                    onClick={() => router.push('/')}
+                    className="w-full py-3 bg-slate-900 text-white font-semibold rounded-xl hover:bg-slate-800 transition-colors"
+                >
+                    Go Home
+                </button>
+            </div>
+        </div>
+      );
+  }
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900 font-sans selection:bg-blue-100 selection:text-blue-900">
@@ -223,6 +254,25 @@ export default function QuizRoom() {
                <div className="text-center">
                  {result.correctOption ? (
                    <>
+                    {/* FEEDBACK BANNER */}
+                    <div className={`mb-6 p-4 rounded-xl border flex items-center justify-center gap-3 animate-bounce-in ${
+                        selectedOption === result.correctOption 
+                        ? 'bg-green-100 border-green-200 text-green-800' 
+                        : 'bg-red-100 border-red-200 text-red-800'
+                    }`}>
+                        {selectedOption === result.correctOption ? (
+                            <>
+                                <Check className="w-6 h-6" />
+                                <span className="text-lg font-bold">You got it right!</span>
+                            </>
+                        ) : (
+                            <>
+                                <div className="w-6 h-6 rounded-full bg-red-200 flex items-center justify-center font-bold">✕</div>
+                                <span className="text-lg font-bold">Wrong Answer</span>
+                            </>
+                        )}
+                    </div>
+
                     <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Correct Answer</p>
                     <div className="p-4 bg-green-50 rounded-xl border border-green-100 text-green-800 font-medium text-lg flex items-center justify-center gap-2">
                         <Check className="w-5 h-5" />

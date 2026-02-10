@@ -324,19 +324,34 @@ export default function HostDashboard() {
                   </div>
                </div>
                
-               <button
+                <button
                 onClick={startNextQuestion}
                 className={`w-full py-4 text-white font-semibold rounded-xl flex items-center justify-center gap-2 transition-all shadow-md ${
-                  currentQuestion && currentQuestion.currentQuestionIndex === currentQuestion.totalQuestions
+                  currentQuestion 
+                  && currentQuestion.currentQuestionIndex === currentQuestion.totalQuestions
+                  && result // ONLY if result is shown (Final Answer Reveal)
                     ? 'bg-slate-800 hover:bg-slate-900 shadow-slate-500/20'
                     : 'bg-blue-600 hover:bg-blue-700 shadow-blue-500/20'
                 }`}
               >
+                {/* 
+                    LOGIC:
+                    - If Live Question: Show "End Question" (implied by next action, usually handled by timer or early stop if manual)
+                    - If Result Shown: Show "Next Slide" or "Finish"
+                    - If Last Question Result: Show "Finish Presentation"
+                */}
                 {currentQuestion && currentQuestion.currentQuestionIndex === currentQuestion.totalQuestions ? (
-                   <div className="flex items-center gap-2">
-                     <Check className="w-5 h-5" />
-                     <span>Finish Presentation</span>
-                   </div>
+                   result ? (
+                       <div className="flex items-center gap-2">
+                         <Check className="w-5 h-5" />
+                         <span>Finish Session</span>
+                       </div>
+                   ) : (
+                       <div className="flex items-center gap-2">
+                         <Play className="w-5 h-5" />
+                         <span>Show Final Results</span>
+                       </div>
+                   )
                 ) : (
                    <>
                     {currentQuestion ? <SkipForward className="w-5 h-5" /> : <Play className="w-5 h-5" />}
@@ -345,7 +360,7 @@ export default function HostDashboard() {
                 )}
               </button>
             </div>
-                        <div className="mt-auto pt-6 text-center space-y-4">
+            <div className="mt-auto pt-6 text-center space-y-4">
                <button
                  onClick={() => setShowTerminateModal(true)}
                  className="w-full py-2 bg-red-50 hover:bg-red-100 text-red-600 font-medium rounded-lg text-sm border border-red-200 transition-colors"
@@ -439,15 +454,31 @@ export default function HostDashboard() {
                 </div>
 
                 <div className="flex-1 flex flex-col justify-end min-h-[400px]">
-                  {voteStats ? (
-                    <div className="h-full w-full">
-                       <LiveChart stats={voteStats} options={currentQuestion.options} />
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-center h-full text-slate-300">
-                      <BarChart3 className="w-24 h-24 opacity-20" />
-                    </div>
-                  )}
+                  <div className="flex gap-6 h-full">
+                      {/* CHART */}
+                      <div className="flex-1">
+                        {voteStats ? (
+                            <div className="h-full w-full">
+                            <LiveChart stats={voteStats} options={currentQuestion.options} />
+                            </div>
+                        ) : (
+                            <div className="flex items-center justify-center h-full text-slate-300">
+                            <BarChart3 className="w-24 h-24 opacity-20" />
+                            </div>
+                        )}
+                      </div>
+                      
+                      {/* OPTIONS LEGEND */}
+                      <div className="w-1/3 space-y-3 overflow-y-auto max-h-[400px] pr-2">
+                        <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Options</p>
+                        {currentQuestion.options.map((opt: any, idx: number) => (
+                            <div key={opt.id} className="p-3 rounded-lg bg-slate-50 border border-slate-100 text-sm flex gap-3">
+                                <span className="font-bold text-blue-600">{['A','B','C','D'][idx]}.</span>
+                                <span className="text-slate-700">{opt.text}</span>
+                            </div>
+                        ))}
+                      </div>
+                  </div>
                 </div>
               </div>
              ) : (
